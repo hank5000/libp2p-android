@@ -1,4 +1,5 @@
 apply plugin: 'com.android.library'
+apply from: '../deploy.gradle'
 
 android {
     compileSdkVersion 21
@@ -27,3 +28,5 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:appcompat-v7:21.0.3'
 }
+
+
