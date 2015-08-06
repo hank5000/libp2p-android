@@ -21,25 +21,6 @@ def isReleaseBuild() {
     return VERSION_NAME.contains("SNAPSHOT") == false
 }
 
-def getReleaseRepositoryUrl() {
-    return hasProperty('RELEASE_REPOSITORY_URL') ? RELEASE_REPOSITORY_URL
-            : "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-}
-
-def getSnapshotRepositoryUrl() {
-    return hasProperty('SNAPSHOT_REPOSITORY_URL') ? SNAPSHOT_REPOSITORY_URL
-            : "https://oss.sonatype.org/content/repositories/snapshots/"
-}
-
-def getRepositoryUsername() {
-    return hasProperty('NEXUS_USERNAME') ? NEXUS_USERNAME : ""
-}
-
-def getRepositoryPassword() {
-    return hasProperty('NEXUS_PASSWORD') ? NEXUS_PASSWORD : ""
-}
-
-
 afterEvaluate { project ->
     uploadArchives {
         repositories {
@@ -50,30 +31,31 @@ afterEvaluate { project ->
                 pom.artifactId = POM_ARTIFACT_ID
                 pom.version = VERSION_NAME
 
-                repository(url: getReleaseRepositoryUrl()) {
-                    authentication(userName: getRepositoryUsername(), password: getRepositoryPassword())
+                repository(url: RELEASE_REPOSITORY_URL) {
+                    authentication(userName: NEXUS_USERNAME, password: NEXUS_PASSWORD)
                 }
-                snapshotRepository(url: getSnapshotRepositoryUrl()) {
-                    authentication(userName: getRepositoryUsername(), password: getRepositoryPassword())
+                snapshotRepository(url: SNAPSHOT_REPOSITORY_URL) {
+                    authentication(userName: NEXUS_USERNAME, password: NEXUS_PASSWORD)
                 }
 
                 pom.project {
                     name POM_NAME
                     packaging POM_PACKAGING
-                    description hasProperty('POM_DESCRIPTION') ? POM_DESCRIPTION : ""
-                    url hasProperty('POM_URL') ? POM_URL : ""
+                    description POM_DESCRIPTION
+                    url POM_URL
+                    inceptionYear POM_INCEPTION_YEAR
 
                     scm {
-                        url hasProperty('POM_SCM_URL') ? POM_SCM_URL : ""
-                        connection hasProperty('POM_SCM_CONNECTION') ? POM_SCM_CONNECTION : ""
-                        developerConnection hasProperty('POM_SCM_DEV_CONNECTION') ? POM_SCM_DEV_CONNECTION : ""
+                        url POM_SCM_URL
+                        connection POM_SCM_CONNECTION
+                        developerConnection POM_SCM_DEV_CONNECTION
                     }
 
                     licenses {
                         license {
-                            name hasProperty('POM_LICENCE_NAME') ? POM_LICENCE_NAME : ""
-                            url  hasProperty('POM_LICENCE_URL') ? POM_LICENCE_URL : ""
-                            distribution hasProperty('POM_LICENCE_DIST') ? POM_LICENCE_DIST : ""
+                            name POM_LICENCE_NAME
+                            url  POM_LICENCE_URL
+                            distribution POM_LICENCE_DIST
                         }
                     }
 
