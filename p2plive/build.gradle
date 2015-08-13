@@ -2,12 +2,19 @@ apply plugin: 'com.android.library'
 apply from: '../deploy.gradle'
 
 android {
-    compileSdkVersion 21
-    buildToolsVersion "21.1.2"
+    compileSdkVersion 22
+    buildToolsVersion "22.0.1"
 
     sourceSets.main {
-        jni.srcDirs = [] // This prevents the auto generation of Android.mk
-        jniLibs.srcDir 'src/main/jniLibs' // This is not necessary unless you have precompiled libraries in your project.
+        jni.srcDirs = [] // This prevents the auto generation of Android.mk, because there is no source for it, we have prebuilt it
+        jniLibs.srcDir 'src/main/jniLibs' // // Where generated .so files are placed.
+        java.srcDirs = ['src/main']
+        resources.srcDirs = ['src/main']
+        aidl.srcDirs = ['src/main']
+    }
+
+    lintOptions {
+        abortOnError false
     }
 
     defaultConfig {
@@ -25,8 +32,7 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:21.0.3'
+    compile 'com.android.support:support-annotations:22.2.0'
 }
 
 
