@@ -1,11 +1,8 @@
 package cn.vbyte.p2p.live;
 
-import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
 import android.util.Log;
-
-import java.io.File;
 
 /**
  * 这是一个单例，里面只有静态方法是公开的，其他都是私有方法
@@ -58,21 +55,19 @@ public class P2PLiveStream {
     // 获取自己公网地址失败
     public static final int ERROR_STUN_FAILED = 207;
     // CDN服务不可用
-    public static final int ERROR_CDN_UNAVAILABLE = 208;
-    // Tracker服务不可用
-    public static final int ERROR_TRACKER_UNAVAILABLE = 209;
+    public static final int ERROR_CDN_UNSTABLE = 208;
     // Tracker相关错误选项
-    public static final int ERROR_JOIN_FAILED = 210;
-    public static final int ERROR_HTBT_FAILED = 211;
-    public static final int ERROR_BYE_FAILED = 212;
+    public static final int ERROR_JOIN_FAILED = 209;
+    public static final int ERROR_HTBT_FAILED = 210;
+    public static final int ERROR_BYE_FAILED = 211;
     // 上报服务不可用
-    public static final int ERROR_REPORT_UNAVAILABLE = 213;
+    public static final int ERROR_REPORT_FAILED = 212;
     // 收到未知的包
-    public static final int ERROR_UNKNOWN_PACKET = 214;
+    public static final int ERROR_UNKNOWN_PACKET = 213;
     // 包内容与签名不一致
-    public static final int ERROR_INVALID_PACKET = 215;
+    public static final int ERROR_INVALID_PACKET = 214;
     // 内部错误
-    public static final int ERROR_INTERNAL = 216;
+    public static final int ERROR_INTERNAL = 215;
 
     // 持久保存SDK版本号
     private static String SDK_VERSION;
@@ -86,13 +81,10 @@ public class P2PLiveStream {
      * @param appKey 应用密钥
      * @param appSecretKey 应用加密混淆字段，可选
      */
-    public static void create(Context context, String appId, String appKey, String appSecretKey) {
+    public static void create(String appId, String appKey, String appSecretKey) {
         try {
-            if (context == null || appId == null || appKey == null || appSecretKey == null) {
-                throw new NullPointerException("Context or appId or appKey or appSecretKey is null!");
-            }
             P2PLiveStream.dismiss();
-            p2pLiveStream = new P2PLiveStream(context, appId, appKey, appSecretKey);
+            p2pLiveStream = new P2PLiveStream(appId, appKey, appSecretKey);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -112,13 +104,13 @@ public class P2PLiveStream {
      * @param resolution 分辨率
      * @return 本地文件系统中缓冲文件路径，是个URI
      */
-    public static Uri loadStream(String channel, String resolution) {
-        p2pLiveStream.start(channel, resolution);
-        return p2pLiveStream.getURI();
+    public static Uri load(String channel, String resolution) {
+        String host = p2pLiveStream.start(channel, resolution);
+        return Uri.parse(host + "/" + resolution + "/" + channel + ".flv");
     }
 
-    public static void stop() {
-        p2pLiveStream.emit(EVENT_STOP);
+    public static void unload() {
+        p2pLiveStream.stop();
     }
 
     /**
@@ -162,11 +154,19 @@ public class P2PLiveStream {
     public interface EventListener {
         /**
          * P2PLiveStream模块内部事件的回调函数
-         * @param Event: 事件类型
+         * @param code: 事件状态码
          * @param message: 事件说明
          * @return 返回值无意义
          */
-        int onEvent(int Event, String message);
+        int onEvent(int code, String message);
+
+        /**
+         * P2PLiveStream模块内部错误的回调函数
+         * @param code: 错误状态码
+         * @param message: 事件说明
+         * @return 返回值无意义
+         */
+        int onError(int code, String message);
     }
 
 
@@ -175,29 +175,26 @@ public class P2PLiveStream {
      *==============================*/
     static {
         try {
+            System.loadLibrary("stun");
+            System.loadLibrary("event");
             System.loadLibrary("p2plivestream");
         } catch (Throwable t) {
             Log.w(TAG, "Unable to load the p2plivestream library: " + t);
         }
     }
 
-    private Context context;
     private EventListener listener = null;
-    private String tmpDir = null;
-    private String flvFilePath;
     private Handler handler = new Handler();
 
-    private P2PLiveStream(Context context, String appId, String appKey, String appSecretKey)
+    private P2PLiveStream(String appId, String appKey, String appSecretKey)
     		throws Exception {
-        if (context == null || appId == null || appKey == null || appSecretKey == null) {
-            throw new NullPointerException("Context or appId or appKey or appSecretKey can't be null when init p2p live stream!");
+        if (appId == null || appKey == null || appSecretKey == null) {
+            throw new NullPointerException("appId or appKey or appSecretKey can't be null when init p2p live stream!");
         }
     	if (init() != 0) {
     		throw new Exception("Can not use p2p!");
     	}
 
-        this.context = context;
-        tmpDir = context.getFilesDir().getAbsolutePath();
     	this.setAppId(appId);
     	this.setAppKey(appKey);
     	this.setAppSecretKey(appSecretKey);
@@ -207,41 +204,36 @@ public class P2PLiveStream {
      * 开始启动一个源
      * @param channel 频道名称
      * @param resolution 清晰度
+     * @return 成功返回资源uri
      */
-    private void start(String channel, String resolution) {
-        if (channel == null || channel.length() == 0) {
-            Log.e(TAG, "Channel can not be null or empty, please init it first!");
-            return;
-        }
-        if (resolution == null || resolution.length() == 0) {
-            Log.w(TAG, "Resolution is empty, may use default resolution!");
-            resolution = "";
-        }
-    	this.setChannel(channel);
-    	this.setResolution(resolution);
-        flvFilePath = tmpDir + File.separator + channel;
-        this.setFlvFilePath(flvFilePath);
-        this.emit(EVENT_START);
-    }
+    private native String start(String channel, String resolution);
 
     /**
-     * 获取当前频道的统一资源定位符
-     * @return 当前频道的统一资源定位符
+     * 停止对当前频道的播放
      */
-    private Uri getURI() {
-        return Uri.parse("file://" + flvFilePath);
-    }
+    private native void stop();
 
     /**
-     * native应用向上层应用的回调函数，其他地方不得以任何理由调用此函数
-     * @param event native代码上报的事件表示，详细见上面定义的常量
+     * native应用向上层应用的事件回调函数，其他地方不得以任何理由调用此函数
+     * @param code native代码上报的事件状态码，详细见上面定义的常量
      * @param message native代码上报事件的说明
      */
-	private void onEvent(int event, String message) {
+	private void onEvent(int code, String message) {
         if (listener != null) {
-            listener.onEvent(event, message);
+            listener.onEvent(code, message);
         }
 	}
+
+    /**
+     * native应用向上层应用的错误回调函数，其他地方不得以任何理由调用此函数
+     * @param code native代码上报的错误状态码，详细见上面定义的常量
+     * @param message native代码上报事件的说明
+     */
+    private void onError(int code, String message) {
+        if (listener != null) {
+            listener.onError(code, message);
+        }
+    }
 
     /**
      * 终止P2PLiveStream Module，这是个阻塞操作，
@@ -257,24 +249,6 @@ public class P2PLiveStream {
     }
 
     /**
-     * 设置频道
-     * @param channel
-     */
-	private native void setChannel(String channel);
-
-    /**
-     * 设置清晰度
-     * @param resolution
-     */
-    private native void setResolution(String resolution);
-
-    /**
-     * 设置当前播放频道的临时缓冲文件位置
-     * @param flvFilePath
-     */
-    private native void setFlvFilePath(String flvFilePath);
-
-    /**
      * native应用销毁
      * @return 成功返回0，失败返回非0
      */
@@ -285,12 +259,6 @@ public class P2PLiveStream {
      * @return 成功返回0，失败返回非0
      */
     private native int init();
-
-    /**
-     * 向native应用发送消息通知
-     * @param event
-     */
-	private native void emit(int event);
 
     /**
      * 设置appId
