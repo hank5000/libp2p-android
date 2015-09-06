@@ -80,7 +80,7 @@ public interface EventListener {
 
  该接口获取P2P模块的版本号，返回一个一`v`开头的字符串，您可以看需使用。
 
-> P2PLiveStream.enableDebug();
+> P2PLiveStream.enableDebug();  
 > P2PLiveStream.disableDebug();
 
 这2个接口是debug开关的接口，默认是打开的，在发布App时，应关闭debug。
@@ -104,7 +104,7 @@ public interface EventListener {
 * **EVENT_BLOCK**: 表明在写数据时遇到了阻塞，这可能会造成播放器的卡顿
 * **EVENT_REPORT**: 表明P2P模块将上传数据，要上传的数据在message里面，是一段json数据
 
-** 注意 **: 请务必处理这些事件时不要执行耗时的操作，因为它跟Android ui主线程一样，如果耗时太久，将会阻止数据流的连续载入；如需要耗时的操作，请使用异步处理。
+**注意**: 请务必处理这些事件时不要执行耗时的操作，因为它跟Android ui主线程一样，如果耗时太久，将会阻止数据流的连续载入；如需要耗时的操作，请使用异步处理。
 
 #### 异常和错误
 
